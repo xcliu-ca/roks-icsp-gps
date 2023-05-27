@@ -7,15 +7,20 @@
 #   version (icsp and global pull secret) to worker file /version
 ### to improve: rbac
 
- export IBMCLOUD_APIKEY=${IBMCLOUD_APIKEY}
- if [ -z "$IBMCLOUD_APIKEY" ]; then
-   echo "!!! ibmcloud api key is required to enable"
-   exit
- fi
- 
+export IBMCLOUD_APIKEY=${IBMCLOUD_APIKEY}
+if [ -z "$IBMCLOUD_APIKEY" ]; then
+  echo "!!! ibmcloud api key is required to enable"
+  exit
+fi
+
 [ -n "$OC" ] || OC=$(which oc)
+[ -n "$JQ" ] || JQ=$(which jq)
 if ! $OC get nodes 2>/dev/null; then
   echo "!!! configure your cluster access to enable"
+  exit
+fi
+if [ -z "$JQ" ]; then
+  echo "!!! jq is required to configure"
   exit
 fi
 
@@ -23,12 +28,16 @@ export IBMCLOUD_CLUSTER=${IBMCLOUD_CLUSTER}
 export IBMCLOUD_REGION=${IBMCLOUD_REGION}
 if [ -z "$IBMCLOUD_REGION" ]; then
   export IBMCLOUD_REGION=$($OC get nodes -o jsonpath="{.items[*].metadata.labels}" | jq | grep "ibm-cloud.kubernetes.io.region" | sort -u | sed -e 's/"//g' -e 's/,//g' | awk '{print $NF}')
+  if [ $(echo $IBMCLOUD_REGION | wc -l) -gt 2 ]; then
+    echo "!!! your worker pool seems to span in multiple regions, provide IBMCLOUD_REGION for your master pool"
+    exit
+  fi
 fi
 if [ -z "$IBMCLOUD_CLUSTER" ]; then
   export IBMCLOUD_CLUSTER=$($OC get nodes -o jsonpath="{.items[*].metadata.labels}" | jq | grep "ibm-cloud.kubernetes.io.worker-pool-id" | sort -u | sed -e 's/"//g' | awk '{print $NF}'  | sed -e 's/-.*//')
 fi
 if [ -z "$IBMCLOUD_REGION" -o -z "$IBMCLOUD_CLUSTER" ]; then
-  echo "!!! you are likely using classic roks, provide region and cluster please"
+  echo "!!! you are likely using classic roks, provide region and cluster with IBMCLOUD_REGION and IBMCLOUD_CLUSTER please"
   exit
 fi
 

@@ -23,13 +23,33 @@ const version_current = ref('vanilla')
 const icsp_result = ref({})
 const gps_result = ref({})
 const gps = ref('')
-const icsp = ref({})
+const icsp = ref({version: '', mirrors: {}})
 // global flags
 const ocp_available = ref(false) //  indicating that ocp cluster is good
 const in_sync = computed(() => version_disk.value === version_current.value)
 const icsp_available = computed(() => icsp_result.value.hasOwnProperty("items") && icsp_result.value.items.length > 0) // indicating that there are icsp to sync
 const gps_available = computed(() => gps_result.value.hasOwnProperty("data")) //  indicating that there are global pull secret
 const updates_available = vmath.logicAnd(icsp_available, gps_available) // indicating that there are both icsp and global pull secret to sync
+const registries = computed(() => {
+  let result = ""
+  Object.keys(icsp.value.mirrors).forEach(source => {
+    const mirrors = icsp.value.mirrors[source]
+    result += `[[registry]]
+  location = "${source}"
+  insecure = false
+  blocked = false
+  mirror-by-digest-only = false
+  prefix = ""
+
+`
+    mirrors.sort((x,y) => x > y ? 1 : -1).forEach(mirror => result += `  [[registry.mirror]]
+  location = "${mirror}"
+  insecure = false
+
+`)
+  })
+  return result
+})
 
 // conditions and triggers
 watch(version_current, () => {
@@ -41,7 +61,7 @@ watch(version_current, () => {
       console.log(`!!!!!! ready for updating files and reboot node`)
       fs.writeFileSync("/host/version", version_current.value, "utf8")
       fs.writeFileSync("/host/.docker/config.json", JSON.stringify({auths: Object.assign({}, backup_dockerconfig.auths, decode(gps.value).auths)},"",2), "utf8")
-      fs.writeFileSync("/host/etc/containers/registries.conf", backup_registries + Object.values(icsp.value).join("\n"), "utf8")
+      fs.writeFileSync("/host/etc/containers/registries.conf", backup_registries + registries.value, "utf8")
       console.log(`!!!!!! rebooting for icsp`)
       reboot().then(console.log(`.!. worker ${node_name.value} rebooted`))
     } else {
@@ -57,7 +77,7 @@ watch(version_disk, () => {
       console.log(`!!!!!! ready for updating files and reboot node`)
       fs.writeFileSync("/host/version", version_current.value, "utf8")
       fs.writeFileSync("/host/.docker/config.json", JSON.stringify({auths: Object.assign({}, backup_dockerconfig.auths, decode(gps.value).auths)},"",2), "utf8")
-      fs.writeFileSync("/host/etc/containers/registries.conf", backup_registries + Object.values(icsp.value).join("\n"), "utf8")
+      fs.writeFileSync("/host/etc/containers/registries.conf", backup_registries + registries.value, "utf8")
       // only reboot for version_current updates
     }
   }
@@ -65,9 +85,10 @@ watch(version_disk, () => {
 
 vcore.whenever(updates_available, () => {
   console.log(chalk.red(`both icsp and gps status refreshed ? ${updates_available.value}`))
+  console.log(registries.value)
   setTimeout(() => {
     if (icsp_available.value) {
-      version_current.value = Object.keys(icsp.value).join("-")
+      version_current.value = icsp.value.version
     }
   }, 1000)
 })
@@ -81,40 +102,25 @@ watch(in_sync, () => {
 watch(icsp, () => {
   Object.entries(icsp.value).forEach(entry => console.log(`icsp: ${entry[0]}`))
   if (updates_available.value) {
-    version_current.value = Object.keys(icsp.value).join("-")
+    version_current.value = icsp.value.version
   }
 })
 watch(gps, () => fs.writeFileSync("/host/.docker/config.json", JSON.stringify({auths: Object.assign({}, backup_dockerconfig.auths, decode(gps.value).auths)},"",2), "utf8"))
 watch(gps_result, () => gps.value = gps_result.value.data[".dockerconfigjson"])
 watch(icsp_result, () => {
-  if (icsp_result.value.hasOwnProperty("items")) {
+  if (icsp_result.value.hasOwnProperty("items") && icsp_result.value.items.length > 0) {
     icsp.value = icsp_result.value.items.map(item => ({
       name: item.metadata.name,
       generation: item.metadata.generation,
       resourceVersion: item.metadata.resourceVersion,
       mirrors: item.spec.repositoryDigestMirrors
         .sort((x,y) => x.source > y.source ? 1 : -1)
-        .reduce((acc, value) => {
-          let result = acc + `[[registry]]
-  location = "${value.source}"
-  insecure = false
-  blocked = false
-  mirror-by-digest-only = false
-  prefix = ""
-
-`
-          value.mirrors.sort((x,y) => x > y ? 1 : -1).forEach(mirror => result += `  [[registry.mirror]]
-  location = "${mirror}"
-  insecure = false
-
-`)
-          return result
-        }, '')
+        .reduce(reduce_icsp_mirrors, {})
     })).sort((x,y) => x.name > y.name ? 1 : -1)
-       .reduce((acc, value) => ({...acc, [value.name + '-' + value.generation + '-' + value.resourceVersion]: value.mirrors}), {})
+       .reduce(reduce_icsps,{})
 
     if (updates_available.value) {
-      version_current.value = Object.keys(icsp.value).join("-")
+      version_current.value = icsp.value.version
     }
   }
 })
@@ -271,4 +277,39 @@ function decode(encoded="") {
     return ''
   }
   return JSON.parse(decodedStr)
+}
+
+// reduce icsp mirrors from array to object
+function reduce_icsp_mirrors (acc, value) { // each value is a mirror
+  return Object.assign({}, acc, {[value.source]: value.mirrors})
+}
+
+// reduce icsps from array to object
+function reduce_icsps (acc, value) { // each value is a icsp object
+  const result = Object.assign({}, acc)
+  if (!result.hasOwnProperty("mirrors")) {
+    result.mirrors = {}
+  }
+  const version = value.name + '-' + value.generation + '-' + value.resourceVersion
+  if (result.version) {
+    result.version += '-' + version
+  } else {
+    result.version = version
+  }
+  Object.keys(value.mirrors).forEach(source => {
+    if (result.mirrors.hasOwnProperty(source)) { // has same mirror source
+      value.mirrors[source].forEach(mirror => {
+        if (!result.mirrors[source].find(e => e === mirror)) {
+          result.mirrors[source].push(mirror)
+        }
+      })
+    } else {
+      result.mirrors[source] = []
+      value.mirrors[source].forEach(mirror => {
+        result.mirrors[source].push(mirror)
+      })
+    }
+    result.mirrors[source].sort((x,y) => x > y ? 1 : -1)
+  })
+  return result
 }

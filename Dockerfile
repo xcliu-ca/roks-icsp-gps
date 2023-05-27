@@ -12,7 +12,7 @@ RUN curl  https://mirror.openshift.com/pub/openshift-v4/$(uname -m)/clients/ocp/
 WORKDIR /workdir
 COPY Dockerfile .
 COPY in-pod-kubeconfig.sh .
-COPY roks-icsp.sh .
+COPY enabler.sh .
 COPY entry-point.sh .
 COPY package.json .
 COPY app.js .

@@ -29,6 +29,6 @@
 1. have `oc` cli available
 2. have `oc` configured
 3. export your ibmcloud api key `export IBMCLOUD_APIKEY=replace-with-your-api-key`
-4. [for classic roks] export your ibmcloud cluster and region information `export IBMCLOUD_REGION=replace-with-cluster-region; export IBMCLOUD_CLUSTER=replace-with-cluster-name-or-id`
+4. [if prompted] export your ibmcloud cluster and region information `export IBMCLOUD_REGION=replace-with-cluster-region; export IBMCLOUD_CLUSTER=replace-with-cluster-name-or-id`
 5. install `daemonset` by executing [script](enabler.sh) `./enabler.sh`
 6. treat `roks` no difference with other `openshift` env
