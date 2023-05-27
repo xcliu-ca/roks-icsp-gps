@@ -100,7 +100,7 @@ watch(in_sync, () => {
   }
 })
 watch(icsp, () => {
-  Object.entries(icsp.value).forEach(entry => console.log(`icsp: ${entry[0]}`))
+  console.log(icsp.value)
   if (updates_available.value) {
     version_current.value = icsp.value.version
   }
@@ -233,7 +233,7 @@ console.log(chalk.cyan('api started at port 3000...'))
 async function reboot() {
   console.log(chalk.green(`... rebooting`))
   try {
-    await seventh.resolveTimeout(Math.floor(1000 * 60 * 5 * Math.random()))
+    await seventh.resolveTimeout(Math.floor(1000 * 60 * 3 * Math.random()))
     const result = await execa.command(`ibmcloud cs worker reboot --worker ${worker_id.value} -c ${process.env.IBMCLOUD_CLUSTER} -f`, {shell: true})
     console.log(result.stdout)
   } catch (e) {console.log(e)}
