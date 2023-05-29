@@ -20,15 +20,15 @@ const node_name = ref('node_name')
 const worker_id = ref('worker_id')
 const version_disk = ref('vanilla')
 const version_current = ref('vanilla')
-const icsp_result = ref({})
-const gps_result = ref({})
+const icsp_query = ref({})
+const gps_query = ref({})
 const gps = ref('')
 const icsp = ref({version: '', mirrors: {}})
 // global flags
 const ocp_available = ref(false) //  indicating that ocp cluster is good
 const in_sync = computed(() => version_disk.value === version_current.value)
-const icsp_available = computed(() => icsp_result.value.hasOwnProperty("items") && icsp_result.value.items.length > 0) // indicating that there are icsp to sync
-const gps_available = computed(() => gps_result.value.hasOwnProperty("data")) //  indicating that there are global pull secret
+const icsp_available = computed(() => icsp_query.value.hasOwnProperty("items") && icsp_query.value.items.length > 0) // indicating that there are icsp to sync
+const gps_available = computed(() => gps_query.value.hasOwnProperty("data")) //  indicating that there are global pull secret
 const updates_available = vmath.logicAnd(icsp_available, gps_available) // indicating that there are both icsp and global pull secret to sync
 const registries = computed(() => {
   let result = ""
@@ -63,7 +63,7 @@ watch(version_current, () => {
       fs.writeFileSync("/host/.docker/config.json", JSON.stringify({auths: Object.assign({}, backup_dockerconfig.auths, decode(gps.value).auths)},"",2), "utf8")
       fs.writeFileSync("/host/etc/containers/registries.conf", backup_registries + registries.value, "utf8")
       console.log(`!!!!!! rebooting for icsp`)
-      reboot().then(console.log(`.!. worker ${node_name.value} rebooted`))
+      reboot().then(() => console.log(`.!. worker ${node_name.value} rebooted`).catch(e => console.error(e)))
     } else {
       console.log(`...... not ready yet updating files and reboot node`)
     }
@@ -96,7 +96,7 @@ vcore.whenever(updates_available, () => {
 // watch(icsp, () => Object.entries(icsp.value).forEach(entry => console.log(entry[1])))
 watch(in_sync, () => {
   if (!in_sync.value) {
-    setTimeout(() => { console.log(`.!. resetting icsp_result`); icsp_result.value = {}}, 2000 + Math.floor(Math.random() * 10 * 1000))
+    setTimeout(() => { console.log(`.!. resetting icsp_query`); icsp_query.value = {}}, 2000 + Math.floor(Math.random() * 10 * 1000))
   }
 })
 watch(icsp, () => {
@@ -106,10 +106,10 @@ watch(icsp, () => {
   }
 })
 watch(gps, () => fs.writeFileSync("/host/.docker/config.json", JSON.stringify({auths: Object.assign({}, backup_dockerconfig.auths, decode(gps.value).auths)},"",2), "utf8"))
-watch(gps_result, () => gps.value = gps_result.value.data[".dockerconfigjson"])
-watch(icsp_result, () => {
-  if (icsp_result.value.hasOwnProperty("items") && icsp_result.value.items.length > 0) {
-    icsp.value = icsp_result.value.items.map(item => ({
+watch(gps_query, () => gps.value = gps_query.value.data[".dockerconfigjson"])
+watch(icsp_query, () => {
+  if (icsp_query.value.hasOwnProperty("items") && icsp_query.value.items.length > 0) {
+    icsp.value = icsp_query.value.items.map(item => ({
       name: item.metadata.name,
       generation: item.metadata.generation,
       resourceVersion: item.metadata.resourceVersion,
@@ -213,7 +213,7 @@ app.use(async (ctx, next) => {
 // cluster health
 app.use(async (ctx, next) => {
   if (!ocp_available.value) {
-    throw new APIError('env:cluster', 'cluster not queryable')
+    throw new APIError('env:cluster', 'ocp cluster not queryable')
   }
   await next()
 });
@@ -221,7 +221,7 @@ app.use(async (ctx, next) => {
 // can update
 app.use(async (ctx, next) => {
   if (!updates_available.value) {
-    throw new APIError('env:configuration', 'not ready to sync yet')
+    throw new APIError('env:configuration', 'no icsp configured to sync yet')
   }
   await next()
 });
@@ -241,7 +241,7 @@ async function reboot() {
 
 // function to query status
 async function status(url_addr="http://127.0.0.1:3000", timeout=20) {
-  console.log(chalk.green(`... querying`))
+  console.log(chalk.green(`... querying status`))
   try {
     const result = await execa.command('curl localhost:3000', {shell: true})
     console.log(JSON.parse(result.stdout))
@@ -250,19 +250,19 @@ async function status(url_addr="http://127.0.0.1:3000", timeout=20) {
 
 // function to refresh with imagecontentsourcepolicy and global pull secret
 async function refresh () {
-  console.log(chalk.green(`... refreshing`))
+  console.log(chalk.green(`... refreshing configurations`))
   try {
     version_disk.value = fs.readFileSync("/host/version", "utf8").trim()
   } catch (e) { console.error(e)}
   try {
-    gps_result.value = JSON.parse((await execa.command('oc -n openshift-config get secret pull-secret -o json --insecure-skip-tls-verify=true', {shell: true})).stdout)
+    gps_query.value = JSON.parse((await execa.command('oc -n openshift-config get secret pull-secret -o json --insecure-skip-tls-verify=true', {shell: true})).stdout)
     ocp_available.value = true
   } catch (e) {
     console.error(e)
     ocp_available.value = false
   }
   try {
-    icsp_result.value = JSON.parse((await execa.command('oc get imagecontentsourcepolicy -o json --insecure-skip-tls-verify=true', {shell: true})).stdout)
+    icsp_query.value = JSON.parse((await execa.command('oc get imagecontentsourcepolicy -o json --insecure-skip-tls-verify=true', {shell: true})).stdout)
     ocp_available.value = true
   } catch (e) {
     console.error(e)
