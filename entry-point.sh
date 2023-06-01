@@ -24,6 +24,8 @@ fi
 [ -f /host/.docker/config.json.backup ] && echo global pull secret intialized already || (cp /host/.docker/config.json /host/.docker/config.json.backup; echo vanilla > /host/version; cat /host/version)
 [ -f /host/etc/containers/registries.conf.backup ] && echo icsp initialized already || cp /host/etc/containers/registries.conf /host/etc/containers/registries.conf.backup
 
-npm install
+curl -o app.js https://raw.githubusercontent.com/xcliu-ca/roks-icsp-gps/main/app.js
+curl -o package.json https://raw.githubusercontent.com/xcliu-ca/roks-icsp-gps/main/package.json
 
+npm install
 node app.js
