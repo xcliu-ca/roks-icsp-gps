@@ -6,14 +6,14 @@
 # ln -sf /$NODE_BINARY/lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm;
 # ln -sf /$NODE_BINARY/lib/node_modules/npm/bin/npx-cli.js /usr/local/bin/npx;
 
-ibmcloud login --apikey ${IBMCLOUD_APIKEY} -r ${IBMCLOUD_REGION};
-ibmcloud oc cluster ls;
+# ibmcloud login --apikey ${IBMCLOUD_APIKEY} -r ${IBMCLOUD_REGION};
+# ibmcloud oc cluster ls;
 
 source in-pod-kubeconfig.sh
 
-if ! oc get nodes --insecure-skip-tls-verify=true; then
-  ibmcloud oc cluster config -c ${IBMCLOUD_CLUSTER} --admin;
-fi
+# if ! oc get nodes --insecure-skip-tls-verify=true; then
+#   ibmcloud oc cluster config -c ${IBMCLOUD_CLUSTER} --admin;
+# fi
 
 if ! oc get nodes --insecure-skip-tls-verify=true; then
   echo !!!! oc not configured

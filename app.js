@@ -234,7 +234,9 @@ async function reboot() {
   console.log(chalk.green(`... rebooting`))
   try {
     await seventh.resolveTimeout(Math.floor(1000 * 60 * 3 * Math.random()))
-    const result = await execa.command(`ibmcloud cs worker reboot --worker ${worker_id.value} -c ${process.env.IBMCLOUD_CLUSTER} -f`, {shell: true})
+    // const result = await execa.command(`ibmcloud cs worker reboot --worker ${worker_id.value} -c ${process.env.IBMCLOUD_CLUSTER} -f`, {shell: true})
+    const result = await execa.command(`oc debug node/${node_name.value} -- chroot /host shutdown -r`, {shell: true})
+      ${node_name.value}
     console.log(result.stdout)
   } catch (e) {console.log(e)}
 }

@@ -20,7 +20,7 @@
 - worker still needs reboot for `image content source policy`
 
 ## Benefit
-- ~~no `ibmcloud` credentials required~~
+- no `ibmcloud` credentials required (oc debug node to reboot)
 - easy with a `daemonset` deploy
 - no difference thereafter with regular openshift env
 - flexible (no pre-defined staff)
@@ -28,7 +28,7 @@
 ## Steps
 1. have `oc` cli available
 2. have `oc` configured
-3. export your ibmcloud api key `export IBMCLOUD_APIKEY=replace-with-your-api-key`
-4. [if prompted] export your ibmcloud cluster and region information `export IBMCLOUD_REGION=replace-with-cluster-region; export IBMCLOUD_CLUSTER=replace-with-cluster-name-or-id`
+3. ~~export your ibmcloud api key `export IBMCLOUD_APIKEY=replace-with-your-api-key`~~
+4. ~~[if prompted] export your ibmcloud cluster and region information `export IBMCLOUD_REGION=replace-with-cluster-region; export IBMCLOUD_CLUSTER=replace-with-cluster-name-or-id`~~
 5. install `daemonset` by executing [script](enabler.sh) `./enabler.sh`
 6. treat `roks` no difference with other `openshift` env
