@@ -17,7 +17,6 @@ const POD = os.hostname()
 
 // reactive variables 
 const node_name = ref('node_name')
-const worker_id = ref('worker_id')
 const version_disk = ref('vanilla')
 const version_current = ref('vanilla')
 const icsp_query = ref({})
@@ -59,7 +58,7 @@ watch(version_current, () => {
     // should update worker files and reboot, with version in disk updated
     if (updates_available.value && ocp_available.value) {
       console.log(`!!!!!! ready for updating files and reboot node`)
-      fs.writeFileSync("/host/version", version_current.value, "utf8")
+      fs.writeFileSync("/host/etc/version", version_current.value, "utf8")
       fs.writeFileSync("/host/.docker/config.json", JSON.stringify({auths: Object.assign({}, backup_dockerconfig.auths, decode(gps.value).auths)},"",2), "utf8")
       fs.writeFileSync("/host/etc/containers/registries.conf", backup_registries + registries.value, "utf8")
       console.log(`!!!!!! rebooting for icsp`)
@@ -75,7 +74,7 @@ watch(version_disk, () => {
   if (version_current.value !== version_disk.value) {
     if (updates_available.value && ocp_available.value) {
       console.log(`!!!!!! ready for updating files and reboot node`)
-      fs.writeFileSync("/host/version", version_current.value, "utf8")
+      fs.writeFileSync("/host/etc/version", version_current.value, "utf8")
       fs.writeFileSync("/host/.docker/config.json", JSON.stringify({auths: Object.assign({}, backup_dockerconfig.auths, decode(gps.value).auths)},"",2), "utf8")
       fs.writeFileSync("/host/etc/containers/registries.conf", backup_registries + registries.value, "utf8")
       // only reboot for version_current updates
@@ -126,19 +125,15 @@ watch(icsp_query, () => {
 })
 
 try {
-  version_disk.value = fs.readFileSync("/host/version", "utf8").trim()
+  version_disk.value = fs.readFileSync("/host/etc/version", "utf8").trim()
 } catch (e) {
-  console.log(chalk.red(`.!. error reading /host/version`))
+  console.log(chalk.red(`.!. error reading /host/etc/version`))
 }
 
 // updates imagecontentsourcepolicy and global pull secret every minute
 execa.command(`oc -n kube-system get pod ${POD} -o json --insecure-skip-tls-verify=true`, {shell: true}).then(result => {
   node_name.value = JSON.parse(result.stdout).spec.nodeName
   console.log(`node_name = ${node_name.value}`)
-  execa.command(`oc -n kube-system get node ${node_name.value} -o json --insecure-skip-tls-verify=true`, {shell: true}).then(r => {
-    worker_id.value = JSON.parse(r.stdout).metadata.labels["ibm-cloud.kubernetes.io/worker-id"]
-    console.log(`worker_id = ${worker_id.value}`)
-  })
 })
 status().then(() => refresh()).then(() => status())
 setInterval(refresh, 37 * 1000)
@@ -157,7 +152,6 @@ function APIError (code, message) {
   this.flag_in_sync = in_sync.value
   this.version = version_current.value
   this.node_name = node_name.value
-  this.worker_id = worker_id.value
 }
 
 const app = new Koa();
@@ -182,7 +176,6 @@ app.use(async (ctx, next) => {
       flag_in_sync: in_sync.value,
       version: version_current.value,
       node_name: node_name.value,
-      worker_id: worker_id.value
     })
   }
   try {
@@ -199,7 +192,6 @@ app.use(async (ctx, next) => {
       flag_in_sync: in_sync.value,
       version: version_current.value,
       node_name: node_name.value,
-      worker_id: worker_id.value
     }
   }
 })
@@ -234,7 +226,6 @@ async function reboot() {
   console.log(chalk.green(`... rebooting`))
   try {
     await seventh.resolveTimeout(Math.floor(1000 * 60 * 3 * Math.random()))
-    // const result = await execa.command(`ibmcloud cs worker reboot --worker ${worker_id.value} -c ${process.env.IBMCLOUD_CLUSTER} -f`, {shell: true})
     const result = await execa.command(`oc debug node/${node_name.value} -- chroot /host shutdown -r`, {shell: true})
     console.log(result.stdout)
   } catch (e) {console.log(e)}
@@ -253,7 +244,7 @@ async function status(url_addr="http://127.0.0.1:3000", timeout=20) {
 async function refresh () {
   console.log(chalk.green(`... refreshing configurations`))
   try {
-    version_disk.value = fs.readFileSync("/host/version", "utf8").trim()
+    version_disk.value = fs.readFileSync("/host/etc/version", "utf8").trim()
   } catch (e) { console.error(e)}
   try {
     gps_query.value = JSON.parse((await execa.command('oc -n openshift-config get secret pull-secret -o json --insecure-skip-tls-verify=true', {shell: true})).stdout)
