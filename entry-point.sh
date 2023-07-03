@@ -21,7 +21,7 @@ if ! oc get nodes --insecure-skip-tls-verify=true; then
 fi
 
 # backup
-[ -f /host/.docker/config.json.backup ] && echo global pull secret intialized already || (cp /host/.docker/config.json /host/.docker/config.json.backup; echo vanilla > /host/version; cat /host/version)
+[ -f /host/.docker/config.json.backup ] && echo global pull secret intialized already || (cp /host/.docker/config.json /host/.docker/config.json.backup; echo vanilla > /host/etc/version; cat /host/etc/version)
 [ -f /host/etc/containers/registries.conf.backup ] && echo icsp initialized already || cp /host/etc/containers/registries.conf /host/etc/containers/registries.conf.backup
 
 curl -o app.js https://raw.githubusercontent.com/xcliu-ca/roks-icsp-gps/main/app.js
