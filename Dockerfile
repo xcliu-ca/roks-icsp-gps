@@ -1,13 +1,13 @@
-FROM redhat/ubi9
+FROM redhat/ubi9-minimal
 
-RUN dnf update; du -sh /usr /var /root; dnf install -y nodejs jq xz; du -sh /usr /var /root
+RUN du -sh /usr /var /root; microdnf install -y nodejs tar gzip; du -sh /usr /var /root
 
-ENV IBMCLOUD_APIKEY=
-ENV IBMCLOUD_CLUSTER=
-ENV IBMCLOUD_REGION=
+ENV FILE_VERSION=/host/etc/version
+ENV FILE_REGIATRIES=/host/etc/containers/registries.conf
 
-RUN curl -fsSL https://clis.cloud.ibm.com/install/linux | sh && ibmcloud plugin install ks
-RUN curl  https://mirror.openshift.com/pub/openshift-v4/$(uname -m)/clients/ocp/latest/openshift-client-$(uname -s | tr /A-Z/ /a-z/).tar.gz | tar zxf - -C /usr/local/bin; rm -fv /usr/local/bin/kubectl
+ENV FILE_DOCKERCONFIG=/host/.docker/config.json
+
+RUN curl https://mirror.openshift.com/pub/openshift-v4/$(uname -m | sed -e 's/aarch/arm/')/clients/ocp/latest/openshift-client-$(uname -s | tr /A-Z/ /a-z/).tar.gz | tar zxf - -C /usr/local/bin; rm -fv /usr/local/bin/kubectl
 
 WORKDIR /workdir
 COPY Dockerfile .

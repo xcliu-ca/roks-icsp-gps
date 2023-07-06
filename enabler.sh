@@ -78,13 +78,7 @@ spec:
         imagePullPolicy: Always
         name: roks-icsp
         priorityClassName: openshift-user-critical
-        env:
-        - name: IBMCLOUD_APIKEY
-          value: ${IBMCLOUD_APIKEY}
-        - name: IBMCLOUD_CLUSTER
-          value: ${IBMCLOUD_CLUSTER}
-        - name: IBMCLOUD_REGION
-          value: ${IBMCLOUD_REGION}
+        env: {}
         volumeMounts:
         - name: host
           mountPath: /host
