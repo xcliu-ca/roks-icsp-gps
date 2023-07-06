@@ -78,7 +78,7 @@ spec:
         imagePullPolicy: Always
         name: roks-icsp
         priorityClassName: openshift-user-critical
-        env: {}
+        env: []
         volumeMounts:
         - name: host
           mountPath: /host
