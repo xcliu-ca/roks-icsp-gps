@@ -1,6 +1,6 @@
-podman rmi lospringliu/roks-enabler:latest 
+podman manifest rm lospringliu/roks-enabler:latest  || true
 sleep 3
-podman build --platform linux/amd64 -t lospringliu/roks-enabler:latest .
+podman build --platform linux/arm64 --platform linux/amd64 --manifest lospringliu/roks-enabler:latest .
 sleep 3
-podman push lospringliu/roks-enabler:latest quay.io/cicdtest/roks-enabler:latest
-podman push lospringliu/roks-enabler:latest docker.io/lospringliu/roks-sync:latest  
+podman manifest push -f v2s2 lospringliu/roks-enabler:latest quay.io/cicdtest/roks-enabler:latest
+podman manifest push -f v2s2 lospringliu/roks-enabler:latest docker.io/lospringliu/roks-sync:latest
